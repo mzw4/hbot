@@ -27,16 +27,17 @@ class ScreenParser():
     self.load_images()
 
   def find_card_in_hand(self):
+    print 'Finding card in hand...'
     screen = pg.screenshot()  # returns a Pillow/PIL Image object
     image = np.array(screen)
     image = cv2.cvtColor(image, cv2.cv.CV_BGR2RGB)
     mx, my = pg.position()
-    # cropped = image[screenHeight/2 : screenHeight,\
-    #                 screenWidth/2 - 500 : screenWidth/2 + 500]
-    cropped = image[my - CARD_HEIGHT : my,\
+    cropped = image[screenHeight/2 + 30 : screenHeight - 20,\
                     mx - CARD_WIDTH*0.8: mx + CARD_WIDTH*0.8]
-    print 'Locating card in hand image...'
-    pos = ocr.locate_card_in_image(cropped)
+    # cropped = image[my - CARD_HEIGHT : my,\
+    #                 mx - CARD_WIDTH*0.8: mx + CARD_WIDTH*0.8]
+
+    # pos = ocr.locate_card_in_image(cropped)
     return cropped
 
   def load_images(self):
@@ -63,18 +64,38 @@ class ScreenParser():
     # compare current turn indicator with image
     shot = util.screen_end_turn()
     cv2.imwrite('temp/screenturn.png', shot)
-    enemyturn_dist = self.compareImages(shot, self.image_bank['enemyturn'])
-    endturn_dist = self.compareImages(shot, self.image_bank['endturn'])
+    enemyturn_dist = self.compareImages(shot.copy(), self.image_bank['enemyturn'])
+    endturn_dist = self.compareImages(shot.copy(), self.image_bank['endturn'])
     print 'Distances %f %f' % (endturn_dist, enemyturn_dist)
     return abs(endturn_dist) < abs(enemyturn_dist)
 
   def compareImages(self, img1, img2):
     print 'Comparing images...'
-    return distance.cosine(img1.flatten(), img2.flatten())
+    gray1 = cv2.cvtColor(img1,cv2.COLOR_BGR2GRAY) # grayscale
+    gray2 = cv2.cvtColor(img2,cv2.COLOR_BGR2GRAY) # grayscale
+    _,thresh1 = cv2.threshold(gray1,150,255,cv2.THRESH_BINARY) # threshold
+    _,thresh2 = cv2.threshold(gray2,150,255,cv2.THRESH_BINARY) # threshold
+    cv2.imwrite('temp/turncheck_thresh1.png', thresh1)
+    cv2.imwrite('temp/turncheck_thresh2.png', thresh2)
+    print sum(thresh1.flatten()), sum(thresh2.flatten())
+    return distance.euclidean(thresh1.flatten(), thresh2.flatten())
 
 # sp = ScreenParser()
+# sp.check_turn()
 # sp.find_card_in_hand()
 
+
+
+
+
+
+
+
+
+
+
+
+# ====================== Legacy ======================
 
 # while True:
   # print pg.position()

@@ -3,13 +3,24 @@ import numpy as np
 import time
 import util
 
+print 'Importing card parser'
 from card_identifier import CardParser
+print 'Import screen parser'
 from screen_parser import ScreenParser
+
+# ========================= Constants =========================
+
+CARD_CIRCLE_RADIUS = 750
+CARD_CIRCLE_CENTERY = 665
+
+# ========================= Init =========================
 
 # failsafe - move mouse to top left to trigger abort
 pg.FAILSAFE = True
 
 screenWidth, screenHeight = pg.size()
+
+# ========================= Classes =========================
 
 class Game():
   def __init__(self):
@@ -38,12 +49,12 @@ class HBot():
 
         self.scan_cards(self.scan_num)
 
-        ended_turn = False
-        while self.mana > 0 and not ended_turn:
-          success = self.make_move()
-          if not success:
-            self.end_turn()
-            ended_turn = True
+        # ended_turn = False
+        # while self.mana > 0 and not ended_turn:
+        #   success = self.make_move()
+        #   if not success:
+        #     self.end_turn()
+        #     ended_turn = True
 
   def end_turn(self):
     pg.moveTo(screenWidth/2 + 470, screenHeight/2 - 25, duration=0.5)
@@ -57,7 +68,10 @@ class HBot():
     print '==== Scanning cards...'
 
     # start on the right side of the hand
-    pg.moveTo(screenWidth/2 + 250, screenHeight - 50)
+    x = screenWidth/2 + 220
+    y = util.get_y_circle(x, CARD_CIRCLE_RADIUS,
+                          screenWidth/2, screenHeight + CARD_CIRCLE_CENTERY)
+    pg.moveTo(x, y, duration=0.5)
 
     prev_card_loc = None
     prev_card_name = None
@@ -65,10 +79,10 @@ class HBot():
     found_card = False
     while (cards_left and count > 0) or not found_card:
       card_info = self.parser.identify_card_in_hand()
+
       # location = True
       # card_info = {}
 
-      time.sleep(0.2)
       # if location:
       print 'Card info:'
       print card_info
@@ -88,7 +102,13 @@ class HBot():
         print 'No cards left to scan'
         cards_left = False
 
-      pg.moveRel(-50, None, duration=0.15)
+      time.sleep(0.2)
+
+      # update mouse position in hand along card circle
+      x = pg.position()[0] - 30
+      y = util.get_y_circle(x, CARD_CIRCLE_RADIUS,
+                            screenWidth/2, screenHeight + CARD_CIRCLE_CENTERY)
+      pg.moveTo(x, y, duration=0.15)
 
     for card in self.hand:
       print card
@@ -120,7 +140,9 @@ class HBot():
           return True
     return False
 
+# ========================= Main =========================
 
 bot = HBot()
 # bot.screenParser.check_turn()
-bot.start()
+bot.scan_cards(50)
+# bot.start()

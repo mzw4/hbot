@@ -6,7 +6,7 @@ from PIL import Image, ImageOps, ImageEnhance
 import pytesseract
 
 # test_path = "content/cards/pow.png"
-test_path = "errors/error4.png"
+test_path = "temp/original_defense_image.png"
 max_a = 40000
 min_a = 2500
 
@@ -24,6 +24,28 @@ def check_bound(w, h):
   a = h*w
   return a < max_a and a > min_a and w > 150
 
+def process_image(image):
+  gray = cv2.cvtColor(image,cv2.COLOR_BGR2GRAY) # grayscale
+  _,thresh = cv2.threshold(gray,250,255,cv2.THRESH_BINARY) # threshold
+  # kernel = cv2.getStructuringElement(cv2.MORPH_CROSS,(3,3))
+  kernel = np.ones((2,2),np.uint8)
+  dilated = cv2.dilate(thresh,kernel,iterations = 13) # dilate
+
+  print 'Saving pics'
+  cv2.imwrite('temp/process_dilated.png', dilated)
+  cv2.imwrite('temp/process_thresh.png', thresh)
+  cv2.imwrite('temp/process_gray.png', gray)
+  cv2.imwrite('temp/process_image.png', image)
+
+  # find the contours of the image and filter according to bounding boxes
+  # look for the text in the center of the card
+  # pick contour with max width to identify the card name text
+  contours, hierarchy = cv2.findContours(dilated,cv2.RETR_EXTERNAL,cv2.CHAIN_APPROX_NONE) # get contours
+  return contours, gray
+
+"""
+Return the larger of the two bounds
+"""
 def filter_bound_get_max(box1, box2):
   [x,y,w,h] = box1
   [x2,y2,w2,h2] = box2
@@ -35,31 +57,14 @@ def filter_bound_get_max(box1, box2):
   elif not in_bound2: return box1
   elif w > w2: return box1
 
-def process_image(image):
-  gray = cv2.cvtColor(image,cv2.COLOR_BGR2GRAY) # grayscale
-  _,thresh = cv2.threshold(gray,250,255,cv2.THRESH_BINARY) # threshold
-  # kernel = cv2.getStructuringElement(cv2.MORPH_CROSS,(3,3))
-  kernel = np.ones((2,2),np.uint8)
-  dilated = cv2.dilate(thresh,kernel,iterations = 13) # dilate
-
-  print 'Saving pics'
-  cv2.imwrite('temp/dilated.png', dilated)
-  cv2.imwrite('temp/thresh.png', thresh)
-  cv2.imwrite('temp/gray.png', gray)
-  cv2.imwrite('temp/image.png', image)
-
-  # find the contours of the image and filter according to bounding boxes
-  # look for the text in the center of the card
-  # pick contour with max width to identify the card name text
-  contours, hierarchy = cv2.findContours(dilated,cv2.RETR_EXTERNAL,cv2.CHAIN_APPROX_NONE) # get contours
-  return contours, gray
-
 """
 Remove irrelevant contours segments from image
 """
 def filter_contours(image):
   kernel = np.ones((2,2),np.uint8)
   dilated = cv2.dilate(image,kernel, iterations = 1) # dilate
+
+  cv2.imwrite('temp/before_filter_cropped_image.png', image)
 
   contours, hierarchy = cv2.findContours(dilated.copy(),cv2.RETR_EXTERNAL,cv2.CHAIN_APPROX_NONE) # get contours
   for c in contours:
@@ -82,8 +87,12 @@ def filter_contours(image):
     # else:
       # print detect_letter(contour)
 
+  cv2.imwrite('temp/filtered_cropped_image.png', dilated)
   return image
 
+"""
+Perform the OCR
+"""
 def perform_ocr(image):
   contours, gray = process_image(image)
 
@@ -99,23 +108,25 @@ def perform_ocr(image):
   # cv2.rectangle(image,(x,y),(x+w,y+h),(255,0,255),2)
 
   # crop image for OCR
-  (iw, ih) = gray.shape
+  (ih, iw) = gray.shape
   cropped = gray[max(y-5,0):min(y+h+5,ih), max(x-5,0) : min(x+w+5, iw)]
-  _,thresh_cropped = cv2.threshold(cropped,210,255,cv2.THRESH_BINARY) # threshold
 
+  # threshold and filter contours
+  _,thresh_cropped = cv2.threshold(cropped,210,255,cv2.THRESH_BINARY) # threshold
   filtered = filter_contours(thresh_cropped.copy())
 
   # kernel = np.ones((2,2),np.uint8)
   # filtered = cv2.dilate(filtered,kernel, iterations = 1) # dilate
 
   pil_im = Image.fromarray((255-filtered))
-  print 'Performing OCR...'
-  pil_im.save('temp/ocr_image.png')
-  cv2.imwrite('temp/ocr_image.png', (255-filtered))
-  return pytesseract.image_to_string(pil_im)
+  pil_im.save('temp/ocr_image2.png')
 
-# image = cv2.imread(test_path)
-# print perform_ocr(image)
+  print 'Performing OCR...'
+  result = pytesseract.image_to_string(pil_im)
+  print result + '!'
+  return result
+
+  # return pytesseract.image_to_string(pil_im)
 
 """
 Return the position of a card in the image, if possible
@@ -134,3 +145,5 @@ def locate_card_in_image(image):
 
 
 
+image = cv2.imread(test_path)
+print perform_ocr(image)
